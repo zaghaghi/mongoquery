@@ -37,7 +37,10 @@ class Query(object):
 
     def match(self, entry):
         """ Matches the entry object against the query specified on instanciation """
-        return self._match(self._definition, entry)
+        self._entry = entry
+        match = self._match(self._definition, entry)
+        del self._entry
+        return match
 
     def _match(self, condition, entry):
         if isinstance(condition, Mapping):
@@ -64,6 +67,11 @@ class Query(object):
             return self._extract(entry[path[0]], path[1:])
         else:
             return _Undefined()
+
+    def _extract_variable(self, condition):
+        if isinstance(condition, string_types) and condition.startswith("$"):
+            return self._entry.get(condition[1:], None)
+        return condition
 
     def _path_exists(self, operator, condition, entry):
         keys_list = list(operator.split('.'))
@@ -92,11 +100,14 @@ class Query(object):
                 return True
         if isinstance(operator, string_type):
             if operator.startswith("$"):
-                try:
-                    return getattr(self, "_" + operator[1:])(condition, entry)
-                except AttributeError:
-                    raise QueryError(
-                        "{!r} operator isn't supported".format(operator))
+                # try:
+                if isinstance(condition, Mapping) and len(condition.keys()) == 1:
+                    key = list(condition.keys())[0]
+                    condition = self._process_condition(key, condition[key], entry)
+                return getattr(self, "_" + operator[1:])(condition, entry)
+                # except AttributeError:
+                #     raise QueryError(
+                #         "{!r} operator isn't supported".format(operator))
             else:
                 try:
                     extracted_data = self._extract(entry, operator.split("."))
@@ -124,29 +135,28 @@ class Query(object):
     # Comparison operators
     ######################
 
-    @staticmethod
-    def _eq(condition, entry):
+    def _eq(self, condition, entry):
+        condition = self._extract_variable(condition)
         try:
             return entry == condition
         except TypeError:
             return False
 
-    @staticmethod
-    def _gt(condition, entry):
+    def _gt(self, condition, entry):
+        condition = self._extract_variable(condition)
         try:
             return entry > condition
         except TypeError:
             return False
 
-    @staticmethod
-    def _gte(condition, entry):
+    def _gte(self, condition, entry):
+        condition = self._extract_variable(condition)
         try:
             return entry >= condition
         except TypeError:
             return False
 
-    @staticmethod
-    def _in(condition, entry):
+    def _in(self, condition, entry):
         if is_non_string_sequence(condition):
             for elem in condition:
                 if is_non_string_sequence(entry) and elem in entry:
@@ -157,22 +167,22 @@ class Query(object):
         else:
             raise TypeError("condition must be a list")
 
-    @staticmethod
-    def _lt(condition, entry):
+    def _lt(self, condition, entry):
+        condition = self._extract_variable(condition)
         try:
             return entry < condition
         except TypeError:
             return False
 
-    @staticmethod
-    def _lte(condition, entry):
+    def _lte(self, condition, entry):
+        condition = self._extract_variable(condition)
         try:
             return entry <= condition
         except TypeError:
             return False
 
-    @staticmethod
-    def _ne(condition, entry):
+    def _ne(self, condition, entry):
+        condition = self._extract_variable(condition)
         return entry != condition
 
     def _nin(self, condition, entry):
@@ -288,6 +298,16 @@ class Query(object):
     @staticmethod
     def _mod(condition, entry):
         return entry % condition[0] == condition[1]
+
+    def _multiply(self, condition, entry):
+        if not is_non_string_sequence(condition):
+            raise TypeError("condition must be a list")
+        extracted_condition = []
+        for cond in condition:
+            extracted_condition.append(self._extract_variable(cond))
+        if extracted_condition[0] is None or extracted_condition[1] is None:
+            return None
+        return extracted_condition[0] * extracted_condition[1]
 
     @staticmethod
     def _regex(condition, entry):
