@@ -309,6 +309,37 @@ class Query(object):
             return None
         return extracted_condition[0] * extracted_condition[1]
 
+    def _divide(self, condition, entry):
+        if not is_non_string_sequence(condition):
+            raise TypeError("condition must be a list")
+        extracted_condition = []
+        for cond in condition:
+            extracted_condition.append(self._extract_variable(cond))
+        if extracted_condition[0] is None or extracted_condition[1] is None:
+            return None
+        return extracted_condition[0] / extracted_condition[1]
+
+    def _add(self, condition, entry):
+        if not is_non_string_sequence(condition):
+            raise TypeError("condition must be a list")
+        extracted_condition = []
+        for cond in condition:
+            extracted_condition.append(self._extract_variable(cond))
+        if extracted_condition[0] is None or extracted_condition[1] is None:
+            return None
+        return extracted_condition[0] + extracted_condition[1]
+
+    def _subtract(self, condition, entry):
+        if not is_non_string_sequence(condition):
+            raise TypeError("condition must be a list")
+        extracted_condition = []
+        for cond in condition:
+            extracted_condition.append(self._extract_variable(cond))
+        if extracted_condition[0] is None or extracted_condition[1] is None:
+            return None
+        return extracted_condition[0] - extracted_condition[1]
+
+
     @staticmethod
     def _regex(condition, entry):
         if not isinstance(entry, string_type):
