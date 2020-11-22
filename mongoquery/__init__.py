@@ -100,14 +100,16 @@ class Query(object):
                 return True
         if isinstance(operator, string_type):
             if operator.startswith("$"):
-                # try:
-                if isinstance(condition, Mapping) and len(condition.keys()) == 1:
-                    key = list(condition.keys())[0]
-                    condition = self._process_condition(key, condition[key], entry)
-                return getattr(self, "_" + operator[1:])(condition, entry)
-                # except AttributeError:
-                #     raise QueryError(
-                #         "{!r} operator isn't supported".format(operator))
+                try:
+                    if isinstance(condition, Mapping):
+                        if len(condition.keys()) != 1:
+                            raise QueryError("Multiple conditions are not supported")
+                        key = list(condition.keys())[0]
+                        condition = self._process_condition(key, condition[key], entry)
+                    return getattr(self, "_" + operator[1:])(condition, entry)
+                except AttributeError:
+                    raise QueryError(
+                        "{!r} operator isn't supported".format(operator))
             else:
                 try:
                     extracted_data = self._extract(entry, operator.split("."))
